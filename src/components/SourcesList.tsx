@@ -3,6 +3,7 @@ import { Source } from '../utils/julesTypes';
 import { formatRepoName } from '../utils/julesHelpers';
 import { ErrorAlert } from './ErrorAlert';
 import { FolderGit2, GitBranch, RefreshCw, Plus, ExternalLink, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface SourcesListProps {
   sources: Source[];
@@ -26,13 +27,21 @@ export const SourcesList: React.FC<SourcesListProps> = ({
   const paginatedSources = sources.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      className="space-y-4 max-w-5xl mx-auto"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">Connected Repositories</h2>
+          <h2 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
+            <FolderGit2 className="w-4 h-4 text-zinc-400" />
+            Connected Repositories
+          </h2>
           <p className="text-xs text-zinc-400 font-mono mt-0.5">
-            GitHub repositories authorized for Jules API asynchronous coding sessions (GET /sources).
+            GitHub repositories authorized for autonomous asynchronous coding sessions (GET /sources).
           </p>
         </div>
 
@@ -55,9 +64,13 @@ export const SourcesList: React.FC<SourcesListProps> = ({
           const srcName = src?.name || `source-${index}`;
 
           return (
-            <div
+            <motion.div
               key={srcName}
-              className="p-4 rounded-lg bg-[#111215] border border-white/[0.08] hover:border-white/[0.18] hover:bg-[#141519] transition-all flex flex-col justify-between space-y-3"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: index * 0.04 }}
+              whileHover={{ y: -2 }}
+              className="p-4 rounded-lg bg-[#111215] border border-white/[0.08] hover:border-white/[0.2] hover:bg-[#15161a] transition-all flex flex-col justify-between space-y-3"
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -86,7 +99,7 @@ export const SourcesList: React.FC<SourcesListProps> = ({
 
               <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between text-xs">
                 <a
-                  href={`https://${src.id || src.repository}`}
+                  href={`https://${src.id || src.repository || repoClean}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-zinc-400 hover:text-zinc-200 font-mono text-[11px] flex items-center gap-1 transition-colors"
@@ -103,7 +116,7 @@ export const SourcesList: React.FC<SourcesListProps> = ({
                   <span>New Task</span>
                 </button>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
@@ -134,6 +147,6 @@ export const SourcesList: React.FC<SourcesListProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };

@@ -1,16 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Header } from './components/Header';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Header, NavTab } from './components/Header';
 import { AlphaDisclaimer } from './components/AlphaDisclaimer';
 import { SessionList } from './components/SessionList';
 import { SessionDetail } from './components/SessionDetail';
 import { NewTaskForm } from './components/NewTaskForm';
 import { TaskTemplates } from './components/TaskTemplates';
 import { SourcesList } from './components/SourcesList';
+import { AnalyticsView } from './components/AnalyticsView';
+import { AutomationsView } from './components/AutomationsView';
+import { SettingsView } from './components/SettingsView';
 import { Session, Activity, Source, TaskTemplate } from './utils/julesTypes';
 import { Footer } from './components/Footer';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'sessions' | 'new-task' | 'templates' | 'sources' | 'detail'>('sessions');
+  const [activeTab, setActiveTab] = useState<NavTab>('sessions');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   // Status & Mode state
@@ -35,7 +39,14 @@ export default function App() {
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
   const [activitiesError, setActivitiesError] = useState<{ status?: number; message?: string } | null>(null);
 
+  // Settings & Sync states
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(10); // in seconds
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(new Date());
+  const [defaultBranch, setDefaultBranch] = useState('main');
+  const [defaultAutoPr, setDefaultAutoPr] = useState(true);
+  const [defaultRequireApproval, setDefaultRequireApproval] = useState(true);
+
   const [prefilledTemplate, setPrefilledTemplate] = useState<TaskTemplate | null>(null);
 
   // Custom fetch wrapper passing x-hollow-mode header if demoMode is enabled
@@ -76,7 +87,7 @@ export default function App() {
     }
   }, [apiFetch]);
 
-  // Fetch Connected Repos (GET /sources)
+  // Fetch Connected Repos
   const fetchSources = useCallback(async () => {
     setIsLoadingSources(true);
     setSourcesError(null);
@@ -90,13 +101,14 @@ export default function App() {
     }
   }, [apiFetch]);
 
-  // Fetch Sessions (GET /sessions)
+  // Fetch Sessions
   const fetchSessions = useCallback(async () => {
     setIsLoadingSessions(true);
     setSessionsError(null);
     try {
       const data = await apiFetch('/api/jules/sessions');
       setSessions(Array.isArray(data?.sessions) ? data.sessions : []);
+      setLastSyncedAt(new Date());
     } catch (err: any) {
       setSessionsError(err);
     } finally {
@@ -115,6 +127,7 @@ export default function App() {
       ]);
       setActiveSession(sessData);
       setActivities(Array.isArray(actData?.activities) ? actData.activities : []);
+      setLastSyncedAt(new Date());
     } catch (err: any) {
       setActivitiesError(err);
     } finally {
@@ -128,6 +141,21 @@ export default function App() {
     fetchSources();
     fetchSessions();
   }, [fetchStatus, fetchSources, fetchSessions]);
+
+  // Background Auto-Sync Timer according to Settings
+  useEffect(() => {
+    if (!autoRefreshEnabled) return;
+
+    const intervalMs = Math.max(3, refreshInterval) * 1000;
+    const timer = setInterval(() => {
+      fetchSessions();
+      if (selectedSessionId && activeTab === 'detail') {
+        fetchSessionDetails(selectedSessionId);
+      }
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [autoRefreshEnabled, refreshInterval, fetchSessions, selectedSessionId, activeTab, fetchSessionDetails]);
 
   // Refresh active detail if selected
   useEffect(() => {
@@ -154,9 +182,10 @@ export default function App() {
       description: '',
       prompt: '',
       suggestedRepo: repoSource,
-      automationMode: 'AUTO_CREATE_PR',
-      requirePlanApproval: true,
-      category: 'refactor'
+      automationMode: defaultAutoPr ? 'AUTO_CREATE_PR' : 'AUTOMATION_MODE_UNSPECIFIED',
+      requirePlanApproval: defaultRequireApproval,
+      category: 'refactor',
+      startingBranch: defaultBranch
     });
     setActiveTab('new-task');
   };
@@ -218,7 +247,9 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          setSelectedSessionId(null);
+          if (tab !== 'detail') {
+            setSelectedSessionId(null);
+          }
         }}
         statusInfo={statusInfo}
         onRefresh={handleRefreshAll}
@@ -229,61 +260,154 @@ export default function App() {
 
       {/* Main Content Body */}
       <main className="flex-1 px-4 lg:px-6 py-6 max-w-6xl mx-auto w-full">
-        {activeTab === 'sessions' && (
-          <SessionList
-            sessions={sessions}
-            isLoading={isLoadingSessions}
-            error={sessionsError}
-            onSelectSession={handleSelectSession}
-            onNewTask={() => setActiveTab('new-task')}
-            onRefresh={fetchSessions}
-            autoRefreshEnabled={autoRefreshEnabled}
-            setAutoRefreshEnabled={setAutoRefreshEnabled}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {activeTab === 'sessions' && (
+            <motion.div
+              key="sessions"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <SessionList
+                sessions={sessions}
+                isLoading={isLoadingSessions}
+                error={sessionsError}
+                onSelectSession={handleSelectSession}
+                onNewTask={() => setActiveTab('new-task')}
+                onRefresh={fetchSessions}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'detail' && (
-          <SessionDetail
-            session={activeSession}
-            activities={activities}
-            isLoading={isLoadingActivities}
-            error={activitiesError}
-            onBack={() => {
-              setActiveTab('sessions');
-              setSelectedSessionId(null);
-            }}
-            onRefresh={() => selectedSessionId && fetchSessionDetails(selectedSessionId)}
-            onApprovePlan={handleApprovePlan}
-            onSendMessage={handleSendMessage}
-          />
-        )}
+          {activeTab === 'detail' && (
+            <motion.div
+              key="detail"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <SessionDetail
+                session={activeSession}
+                activities={activities}
+                isLoading={isLoadingActivities}
+                error={activitiesError}
+                onBack={() => {
+                  setActiveTab('sessions');
+                  setSelectedSessionId(null);
+                }}
+                onRefresh={() => selectedSessionId && fetchSessionDetails(selectedSessionId)}
+                onApprovePlan={handleApprovePlan}
+                onSendMessage={handleSendMessage}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'new-task' && (
-          <NewTaskForm
-            sources={sources}
-            isLoadingSources={isLoadingSources}
-            onRefreshSources={fetchSources}
-            onSubmitTask={handleCreateSession}
-            prefilledTemplate={prefilledTemplate}
-            onClearTemplatePrefill={() => setPrefilledTemplate(null)}
-          />
-        )}
+          {activeTab === 'new-task' && (
+            <motion.div
+              key="new-task"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <NewTaskForm
+                sources={sources}
+                isLoadingSources={isLoadingSources}
+                onRefreshSources={fetchSources}
+                onSubmitTask={handleCreateSession}
+                prefilledTemplate={prefilledTemplate}
+                onClearTemplatePrefill={() => setPrefilledTemplate(null)}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'templates' && (
-          <TaskTemplates
-            onSelectTemplate={handleSelectTemplate}
-          />
-        )}
+          {activeTab === 'templates' && (
+            <motion.div
+              key="templates"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <TaskTemplates
+                onSelectTemplate={handleSelectTemplate}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'sources' && (
-          <SourcesList
-            sources={sources}
-            isLoading={isLoadingSources}
-            error={sourcesError}
-            onRefresh={fetchSources}
-            onSelectRepoForNewTask={handleSelectRepoForNewTask}
-          />
-        )}
+          {activeTab === 'sources' && (
+            <motion.div
+              key="sources"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <SourcesList
+                sources={sources}
+                isLoading={isLoadingSources}
+                error={sourcesError}
+                onRefresh={fetchSources}
+                onSelectRepoForNewTask={handleSelectRepoForNewTask}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <motion.div
+              key="analytics"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <AnalyticsView sessions={sessions} />
+            </motion.div>
+          )}
+
+          {activeTab === 'automations' && (
+            <motion.div
+              key="automations"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <AutomationsView />
+            </motion.div>
+          )}
+
+          {activeTab === 'settings' && (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <SettingsView
+                autoRefreshEnabled={autoRefreshEnabled}
+                setAutoRefreshEnabled={setAutoRefreshEnabled}
+                refreshInterval={refreshInterval}
+                setRefreshInterval={setRefreshInterval}
+                onManualSync={handleRefreshAll}
+                isSyncing={isLoadingSessions || isLoadingSources}
+                lastSyncedAt={lastSyncedAt}
+                statusInfo={statusInfo}
+                demoMode={demoMode}
+                setDemoMode={setDemoMode}
+                defaultBranch={defaultBranch}
+                setDefaultBranch={setDefaultBranch}
+                defaultAutoPr={defaultAutoPr}
+                setDefaultAutoPr={setDefaultAutoPr}
+                defaultRequireApproval={defaultRequireApproval}
+                setDefaultRequireApproval={setDefaultRequireApproval}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Footer */}

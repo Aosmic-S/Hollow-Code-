@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Session, Activity } from '../utils/julesTypes';
+import { Session, Activity, ActivityArtifact } from '../utils/julesTypes';
 import { formatSessionState, formatRelativeTime, formatRepoName, getSessionId } from '../utils/julesHelpers';
 import { ErrorAlert } from './ErrorAlert';
 import { Logo } from './Logo';
@@ -12,7 +12,6 @@ import {
   GitBranch,
   Terminal,
   FileCode,
-  Send,
   Check,
   Copy,
   ChevronDown,
@@ -20,7 +19,10 @@ import {
   ShieldCheck,
   RefreshCw,
   User,
-  CornerDownLeft
+  CornerDownLeft,
+  GitCommit,
+  Sparkles,
+  Info
 } from 'lucide-react';
 
 interface SessionDetailProps {
@@ -47,7 +49,7 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
   const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>({});
 
   if (!session) {
@@ -56,7 +58,7 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
         <p>Session not found or unavailable.</p>
         <button
           onClick={onBack}
-          className="px-3 py-1.5 bg-zinc-800 text-xs rounded text-zinc-200 hover:bg-zinc-700 transition-colors"
+          className="px-3 py-1.5 bg-zinc-800 text-xs rounded text-zinc-200 hover:bg-zinc-700 transition-colors cursor-pointer"
         >
           Return to Sessions
         </button>
@@ -97,9 +99,9 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
     }
   };
 
-  const copyText = (text: string, index: number) => {
+  const copyText = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
+    setCopiedIndex(id);
     setTimeout(() => setCopiedIndex(null), 1800);
   };
 
@@ -188,7 +190,7 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
             <div>
               <span className="font-semibold text-amber-200">Execution Plan Awaiting Approval</span>
               <p className="text-zinc-400 mt-0.5 font-sans leading-relaxed">
-                Jules generated a multi-step plan. Review the steps below and click Approve to proceed with codebase mutations.
+                The agent generated an execution plan. Review the steps below and click Approve to proceed with codebase mutations.
               </p>
             </div>
           </div>
@@ -212,7 +214,7 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
         <span className="font-medium text-zinc-200 uppercase tracking-wider text-[11px]">
           Activity Stream ({activities.length})
         </span>
-        <span>Auto-synced</span>
+        <span className="text-zinc-500 text-[11px]">Timeline</span>
       </div>
 
       {/* Timeline Stream */}
@@ -224,7 +226,24 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
         )}
 
         {activities.map((act, index) => {
-          const isUser = act.originator === 'USER';
+          const isUser = (act.originator || '').toLowerCase() === 'user';
+          const plan = act.plan || act.planGenerated?.plan;
+          const progress = act.progressUpdated || act.progressUpdate;
+          const userMsg = act.userMessage?.text || act.userMessaged?.text || act.userMessaged?.message;
+          const directMessage = act.message || act.text || act.description || act.summary;
+          const artifacts = Array.isArray(act.artifacts) ? act.artifacts : [];
+
+          const hasBodyContent = Boolean(
+            plan ||
+            progress ||
+            userMsg ||
+            directMessage ||
+            act.planApproved ||
+            act.sessionCompleted ||
+            act.bashOutput ||
+            act.fileChanges ||
+            artifacts.length > 0
+          );
 
           return (
             <div
@@ -246,76 +265,194 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
                   ) : (
                     <span className="text-zinc-200 font-semibold flex items-center gap-1.5">
                       <Logo size="sm" showText={false} />
-                      Jules Agent
+                      Autonomous Agent
                     </span>
                   )}
                 </div>
                 <span>{formatRelativeTime(act.createTime)}</span>
               </div>
 
-              {/* 1. Progress Update */}
-              {act.progressUpdate && (
-                <p className="text-xs text-zinc-300 font-sans leading-relaxed">
-                  {act.progressUpdate.message}
+              {/* Progress Update (Real API & Mock support) */}
+              {progress && (
+                <div className="space-y-1">
+                  {progress.title && (
+                    <div className="text-xs font-semibold text-zinc-200 leading-snug font-sans">
+                      {progress.title}
+                    </div>
+                  )}
+                  {progress.description && (
+                    <p className="text-xs text-zinc-300 font-sans leading-relaxed whitespace-pre-wrap">
+                      {progress.description}
+                    </p>
+                  )}
+                  {progress.message && !progress.description && (
+                    <p className="text-xs text-zinc-300 font-sans leading-relaxed whitespace-pre-wrap">
+                      {progress.message}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* User Message */}
+              {userMsg && (
+                <p className="text-xs text-zinc-100 font-mono leading-relaxed whitespace-pre-wrap">
+                  {userMsg}
                 </p>
               )}
 
-              {/* 2. User Message */}
-              {act.userMessage && (
-                <p className="text-xs text-zinc-100 font-mono leading-relaxed">
-                  {act.userMessage.text}
+              {/* Direct string message if progress is not present */}
+              {!progress && !userMsg && directMessage && (
+                <p className="text-xs text-zinc-300 font-sans leading-relaxed whitespace-pre-wrap">
+                  {directMessage}
                 </p>
               )}
 
-              {/* 3. Execution Plan */}
-              {act.plan && (
-                <div className="space-y-2.5">
-                  <div className="text-xs font-semibold text-zinc-200 font-mono flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Proposed Plan ({act.plan.steps.length} Steps)</span>
-                  </div>
+              {/* Plan Approved Event */}
+              {act.planApproved && (
+                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 px-3 py-2 rounded">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Execution plan approved. Autonomous codebase mutations underway.</span>
+                </div>
+              )}
 
-                  <div className="p-2.5 rounded bg-zinc-950/70 border border-white/[0.04] space-y-1.5">
-                    {act.plan.steps.map((step, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-start gap-2.5 text-xs font-mono py-1 border-b border-white/[0.03] last:border-0"
-                      >
-                        {step.state === 'COMPLETED' ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                        ) : step.state === 'IN_PROGRESS' ? (
-                          <Clock className="w-3.5 h-3.5 text-sky-400 animate-spin shrink-0 mt-0.5" />
-                        ) : (
-                          <span className="w-3.5 h-3.5 rounded-full border border-zinc-700 bg-zinc-900 shrink-0 mt-0.5 flex items-center justify-center text-[9px] text-zinc-400 font-mono">
-                            {idx + 1}
-                          </span>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <span
-                            className={
-                              step.state === 'COMPLETED'
-                                ? 'text-zinc-400 line-through opacity-80'
-                                : step.state === 'IN_PROGRESS'
-                                ? 'text-zinc-100 font-medium'
-                                : 'text-zinc-400'
-                            }
-                          >
-                            {step.title}
-                          </span>
-                          {step.description && (
-                            <p className="text-[11px] text-zinc-400 font-sans mt-0.5">{step.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+              {/* Session Completed Event */}
+              {act.sessionCompleted && (
+                <div className="flex items-center gap-2 text-xs font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-700/50 px-3.5 py-2.5 rounded">
+                  <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="space-y-0.5">
+                    <span className="font-semibold">Autonomous session successfully completed!</span>
+                    <p className="text-[11px] text-zinc-400 font-sans">All tasks, test verifications, and git patches have finished.</p>
                   </div>
                 </div>
               )}
 
-              {/* 4. Bash Execution Output */}
+              {/* Execution Plan (supports planGenerated and plan) */}
+              {plan && Array.isArray(plan.steps) && (
+                <div className="mt-2.5 space-y-2.5">
+                  <div className="text-xs font-semibold text-zinc-200 font-mono flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Proposed Plan ({plan.steps.length} Steps)</span>
+                  </div>
+
+                  <div className="p-2.5 rounded bg-zinc-950/70 border border-white/[0.04] space-y-1.5">
+                    {plan.steps.map((step, idx) => {
+                      const isComplete = step.state === 'COMPLETED';
+                      const isInProgress = step.state === 'IN_PROGRESS';
+
+                      return (
+                        <div
+                          key={step.id || idx}
+                          className="flex items-start gap-2.5 text-xs font-mono py-1 border-b border-white/[0.03] last:border-0"
+                        >
+                          {isComplete ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          ) : isInProgress ? (
+                            <Clock className="w-3.5 h-3.5 text-sky-400 animate-spin shrink-0 mt-0.5" />
+                          ) : (
+                            <span className="w-3.5 h-3.5 rounded-full border border-zinc-700 bg-zinc-900 shrink-0 mt-0.5 flex items-center justify-center text-[9px] text-zinc-400 font-mono">
+                              {idx + 1}
+                            </span>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <span
+                              className={
+                                isComplete
+                                  ? 'text-zinc-400 line-through opacity-80'
+                                  : isInProgress
+                                  ? 'text-zinc-100 font-medium'
+                                  : 'text-zinc-300'
+                              }
+                            >
+                              {step.title}
+                            </span>
+                            {step.description && (
+                              <p className="text-[11px] text-zinc-400 font-sans mt-0.5 whitespace-pre-wrap leading-relaxed">
+                                {step.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Artifacts / Git Patch Viewer (Real API payload) */}
+              {artifacts.length > 0 && (
+                <div className="mt-2.5 space-y-2">
+                  {artifacts.map((art, aIdx) => {
+                    const patch = art.changeSet?.gitPatch;
+                    if (!patch) return null;
+                    const collapseKey = `patch-${index}-${aIdx}`;
+                    const isCollapsed = collapsedItems[collapseKey] ?? true;
+
+                    return (
+                      <div key={aIdx} className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleCollapse(collapseKey)}
+                          className="w-full flex items-center justify-between p-2 rounded bg-zinc-950 border border-white/[0.06] text-xs font-mono text-zinc-300 hover:border-zinc-700 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 truncate text-left">
+                            <GitCommit className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span className="text-zinc-200 truncate font-semibold">
+                              {patch.suggestedCommitMessage ? patch.suggestedCommitMessage.split('\n')[0] : 'Git Patch Artifact'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-emerald-950/60 text-emerald-400 border border-emerald-900/40">
+                              Git Diff
+                            </span>
+                            {isCollapsed ? (
+                              <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                            )}
+                          </div>
+                        </button>
+
+                        {!isCollapsed && (
+                          <div className="space-y-1.5">
+                            {patch.suggestedCommitMessage && (
+                              <div className="p-2 rounded bg-zinc-950/80 border border-white/[0.04] text-[11px] text-zinc-300 font-mono whitespace-pre-wrap leading-relaxed">
+                                <span className="text-[9px] uppercase tracking-wider text-zinc-500 block mb-0.5">Commit Message</span>
+                                {patch.suggestedCommitMessage}
+                              </div>
+                            )}
+
+                            {patch.unidiffPatch && (
+                              <div className="relative group">
+                                <pre className="p-3 rounded bg-[#090a0c] border border-white/[0.06] font-mono text-[10.5px] text-zinc-300 overflow-x-auto max-h-72 leading-relaxed">
+                                  {patch.unidiffPatch}
+                                </pre>
+                                <button
+                                  type="button"
+                                  onClick={() => copyText(patch.unidiffPatch || '', collapseKey)}
+                                  className="absolute right-2 top-2 p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                  title="Copy patch diff"
+                                >
+                                  {copiedIndex === collapseKey ? (
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Bash Execution Output */}
               {act.bashOutput && (
                 <div className="mt-2 space-y-1.5">
                   <button
+                    type="button"
                     onClick={() => toggleCollapse(`bash-${index}`)}
                     className="w-full flex items-center justify-between p-2 rounded bg-zinc-950 border border-white/[0.06] text-xs font-mono text-zinc-300 hover:border-zinc-700 transition-colors cursor-pointer"
                   >
@@ -347,21 +484,27 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
                         {act.bashOutput.output || '(no stdout output)'}
                       </pre>
                       <button
-                        onClick={() => copyText(act.bashOutput?.output || '', index)}
+                        type="button"
+                        onClick={() => copyText(act.bashOutput?.output || '', `bash-${index}`)}
                         className="absolute right-2 top-2 p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                         title="Copy command output"
                       >
-                        {copiedIndex === index ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        {copiedIndex === `bash-${index}` ? (
+                          <Check className="w-3 h-3 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
                       </button>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* 5. File Changes Diff */}
+              {/* File Changes Diff */}
               {act.fileChanges && (
                 <div className="mt-2 space-y-1.5">
                   <button
+                    type="button"
                     onClick={() => toggleCollapse(`files-${index}`)}
                     className="w-full flex items-center justify-between p-2 rounded bg-zinc-950 border border-white/[0.06] text-xs font-mono text-zinc-300 hover:border-zinc-700 transition-colors cursor-pointer"
                   >
@@ -406,6 +549,14 @@ export const SessionDetail: React.FC<SessionDetailProps> = ({
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Fallback if no specific format matched but activity exists */}
+              {!hasBodyContent && (
+                <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 italic py-1">
+                  <Info className="w-3.5 h-3.5 text-zinc-500" />
+                  <span>Agent recorded an event ({act.name?.split('/').pop() || 'activity'})</span>
                 </div>
               )}
             </div>

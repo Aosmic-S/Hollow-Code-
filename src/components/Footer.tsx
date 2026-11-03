@@ -9,18 +9,11 @@ export const Footer: React.FC = () => {
           <Logo size="sm" showText={false} />
           <span className="text-zinc-300 font-medium font-sans">Hollow Code</span>
           <span className="text-zinc-600">·</span>
-          <span>Google Jules API (v1alpha)</span>
+          <span>Autonomous Coding Platform (v1alpha)</span>
         </div>
 
         <div className="flex items-center gap-3 text-[11px] text-zinc-400">
-          <a
-            href="https://jules.googleapis.com/v1alpha"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-zinc-200 transition-colors"
-          >
-            API Reference
-          </a>
+          <span className="text-zinc-500">Autonomous Execution Engine</span>
           <span className="text-zinc-700">·</span>
           <span>Code while you&apos;re gone.</span>
         </div>

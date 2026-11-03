@@ -1,6 +1,6 @@
 {
   "name": "Hollow Code",
-  "description": "Dashboard for Google's asynchronous coding agent Jules API (v1alpha). Code while you're gone.",
+  "description": "Dashboard for autonomous asynchronous coding agent (v1alpha). Code while you're gone.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

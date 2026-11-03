@@ -52,7 +52,9 @@ export interface PlanActivity {
 }
 
 export interface ProgressUpdateActivity {
-  message: string;
+  message?: string;
+  title?: string;
+  description?: string;
 }
 
 export interface BashOutputActivity {
@@ -78,20 +80,59 @@ export interface UserMessageActivity {
   text: string;
 }
 
+export interface ActivityArtifact {
+  changeSet?: {
+    source?: string;
+    gitPatch?: {
+      unidiffPatch?: string;
+      suggestedCommitMessage?: string;
+      baseCommitId?: string;
+    };
+  };
+  [key: string]: any;
+}
+
 export interface Activity {
-  name: string; // "sessions/xyz123/activities/act1"
+  name: string;
   id: string;
   createTime: string;
-  originator: 'AGENT' | 'USER' | 'SYSTEM';
+  originator: 'AGENT' | 'USER' | 'SYSTEM' | 'agent' | 'user' | 'system' | string;
+  // Standard and real API activity variants
   plan?: PlanActivity;
+  planGenerated?: {
+    plan: {
+      id?: string;
+      steps: PlanStep[];
+    };
+  };
+  planApproved?: {
+    planId?: string;
+  };
   progressUpdate?: ProgressUpdateActivity;
+  progressUpdated?: {
+    title?: string;
+    description?: string;
+    message?: string;
+  };
+  artifacts?: ActivityArtifact[];
+  sessionCompleted?: Record<string, any>;
   bashOutput?: BashOutputActivity;
   fileChanges?: FileChangesActivity;
   userMessage?: UserMessageActivity;
+  userMessaged?: {
+    message?: string;
+    text?: string;
+  };
+  message?: string;
+  text?: string;
+  description?: string;
+  title?: string;
+  summary?: string;
   errorDetails?: {
     code: number;
     message: string;
   };
+  [key: string]: any;
 }
 
 export interface TaskTemplate {

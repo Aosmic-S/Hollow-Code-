@@ -71,27 +71,27 @@ export function parseErrorMessage(status: number, message?: string): { title: st
   if (status === 429) {
     return {
       title: 'API Rate Limit Exceeded (429)',
-      detail: 'The Jules API (v1alpha) rate limit was reached. Automatic requests will retry shortly once quota resets.',
+      detail: 'The Agent API (v1alpha) rate limit was reached. Automatic requests will retry shortly once quota resets.',
       isRateLimit: true
     };
   }
   if (status >= 500) {
     return {
-      title: 'Jules API Service Error (5xx)',
-      detail: message || `Google Jules API service returned HTTP ${status}. The v1alpha endpoint may be undergoing maintenance.`,
+      title: 'Agent Service Error (5xx)',
+      detail: message || `Autonomous agent service returned HTTP ${status}. The v1alpha endpoint may be undergoing maintenance.`,
       isRateLimit: false
     };
   }
   if (status === 401 || status === 403) {
     return {
       title: 'Authentication Error (401/403)',
-      detail: 'Jules API key is missing or invalid. Check the server JULES_API_KEY environment variable.',
+      detail: 'Agent API key is missing or invalid. Check the server environment configuration.',
       isRateLimit: false
     };
   }
   return {
     title: `Error (${status || 'Fetch Failed'})`,
-    detail: message || 'Unable to complete request to Jules API proxy.',
+    detail: message || 'Unable to complete request to agent engine proxy.',
     isRateLimit: false
   };
 }

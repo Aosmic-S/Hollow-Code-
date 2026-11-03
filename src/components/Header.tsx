@@ -1,10 +1,23 @@
 import React, { useState } from 'react';
 import { Logo } from './Logo';
-import { Plus, RefreshCw, KeyRound, CheckCircle2, SlidersHorizontal, Info } from 'lucide-react';
+import {
+  Plus,
+  RefreshCw,
+  SlidersHorizontal,
+  Info,
+  Layers,
+  BarChart3,
+  Zap,
+  Settings,
+  ShieldCheck,
+  Cpu
+} from 'lucide-react';
+
+export type NavTab = 'sessions' | 'new-task' | 'templates' | 'sources' | 'analytics' | 'automations' | 'settings' | 'detail';
 
 interface HeaderProps {
-  activeTab: 'sessions' | 'new-task' | 'templates' | 'sources' | 'detail';
-  setActiveTab: (tab: 'sessions' | 'new-task' | 'templates' | 'sources') => void;
+  activeTab: NavTab;
+  setActiveTab: (tab: NavTab) => void;
   statusInfo: { configured: boolean; mode: 'live' | 'demo'; apiKeyPresent: boolean };
   onRefresh: () => void;
   isRefreshing?: boolean;
@@ -23,19 +36,23 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [showConfigModal, setShowConfigModal] = useState(false);
 
-  const navItems: Array<{ id: 'sessions' | 'new-task' | 'templates' | 'sources'; label: string }> = [
+  const navItems: Array<{ id: NavTab; label: string }> = [
     { id: 'sessions', label: 'Sessions' },
     { id: 'new-task', label: 'New Task' },
     { id: 'templates', label: 'Templates' },
-    { id: 'sources', label: 'Repositories' }
+    { id: 'sources', label: 'Repositories' },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'automations', label: 'Automations' },
+    { id: 'settings', label: 'Settings' }
   ];
 
   return (
     <>
       <header className="sticky top-0 z-30 bg-[#090a0c]/90 backdrop-blur-md border-b border-white/[0.08] px-4 lg:px-6 py-2.5 flex items-center justify-between gap-4">
-        {/* Zone 1: Brand & Logo */}
+        {/* Brand & Logo */}
         <div className="flex items-center gap-3 shrink-0">
           <button
+            type="button"
             onClick={() => setActiveTab('sessions')}
             className="flex items-center group text-left transition-opacity hover:opacity-90 cursor-pointer"
             aria-label="Hollow Code - Home"
@@ -44,9 +61,9 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Zone 2: Navigation Links */}
+        {/* Navigation Tabs */}
         <nav
-          className="hidden md:flex items-center p-0.5 rounded-lg bg-zinc-900/90 border border-white/[0.06]"
+          className="hidden md:flex items-center p-0.5 rounded-lg bg-zinc-900/90 border border-white/[0.06] overflow-x-auto"
           aria-label="Main Navigation"
         >
           {navItems.map((item) => {
@@ -54,8 +71,9 @@ export const Header: React.FC<HeaderProps> = ({
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => setActiveTab(item.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap cursor-pointer ${
                   isActive
                     ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
@@ -67,10 +85,11 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </nav>
 
-        {/* Zone 3: Actions & API Status */}
+        {/* Actions & Status */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Jules API Status Badge */}
+          {/* Autonomous Engine Status Badge */}
           <button
+            type="button"
             onClick={() => setShowConfigModal(true)}
             className={`px-2.5 py-1 rounded-md text-[11px] font-mono flex items-center gap-1.5 border transition-colors cursor-pointer ${
               demoMode
@@ -79,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-emerald-950/20 text-emerald-300 border-emerald-900/40 hover:bg-emerald-950/30'
                 : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800'
             }`}
-            title="Configure Jules API connection"
+            title="Configure Autonomous Engine connection"
           >
             <span
               className={`w-1.5 h-1.5 rounded-full ${
@@ -91,18 +110,19 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             />
             <span className="hidden sm:inline">
-              {demoMode ? 'Sandbox Mode' : statusInfo.configured ? 'Jules Live' : 'Key Unset (Demo)'}
+              {demoMode ? 'Sandbox Mode' : statusInfo.configured ? 'Engine Live' : 'Key Unset (Demo)'}
             </span>
             <span className="sm:hidden">{demoMode ? 'Sandbox' : statusInfo.configured ? 'Live' : 'Demo'}</span>
             <SlidersHorizontal className="w-2.5 h-2.5 opacity-60 ml-0.5" />
           </button>
 
-          {/* Refresh Action */}
+          {/* Quick Refresh Action */}
           <button
+            type="button"
             onClick={onRefresh}
             disabled={isRefreshing}
             className="p-1.5 rounded-md bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-white/[0.06] transition-colors disabled:opacity-50 cursor-pointer"
-            title="Refresh sessions & sources"
+            title="Refresh data"
             aria-label="Refresh data"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-zinc-200' : ''}`} />
@@ -110,6 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Primary Action Button */}
           <button
+            type="button"
             onClick={() => setActiveTab('new-task')}
             className="px-2.5 sm:px-3 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shrink-0"
             aria-label="Create New Task"
@@ -120,14 +141,35 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </header>
 
+      {/* Mobile Navigation Row */}
+      <div className="md:hidden flex items-center gap-1 overflow-x-auto px-4 py-2 bg-zinc-950 border-b border-white/[0.06]">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`px-2.5 py-1 text-xs font-medium rounded whitespace-nowrap transition-colors ${
+                isActive
+                  ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Configuration & Diagnostics Modal */}
       {showConfigModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-[#111215] border border-white/[0.1] rounded-xl max-w-md w-full p-5 text-zinc-200 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">
-                <Logo size="sm" />
-                <h3 className="text-sm font-semibold text-zinc-100">Jules API Configuration</h3>
+                <Logo size="sm" showText={false} />
+                <h3 className="text-sm font-semibold text-zinc-100">Autonomous Engine Configuration</h3>
               </div>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
                 v1alpha
@@ -135,7 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-              Google Jules API calls are handled through the local Express proxy route (<code className="text-zinc-300 font-mono text-[11px]">/api/jules/*</code>). The API key is stored securely in the server environment as <code className="text-zinc-300 font-mono text-[11px]">JULES_API_KEY</code> and transmitted in the <code className="text-zinc-300 font-mono text-[11px]">X-Goog-Api-Key</code> header.
+              Asynchronous agent requests are routed through the secure server proxy. The authentication credentials live strictly in the server environment and are never exposed to the client browser.
             </p>
 
             <div className="p-3 rounded-lg bg-zinc-950/80 border border-white/[0.06] space-y-2 text-xs font-mono">
@@ -152,8 +194,8 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500">Target Base:</span>
-                <span className="text-zinc-400">jules.googleapis.com</span>
+                <span className="text-zinc-500">API Protocol:</span>
+                <span className="text-zinc-400">Autonomous Agent REST v1alpha</span>
               </div>
             </div>
 
@@ -169,8 +211,9 @@ export const Header: React.FC<HeaderProps> = ({
               </label>
 
               <button
+                type="button"
                 onClick={() => setShowConfigModal(false)}
-                className="px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-medium transition-colors"
+                className="px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-medium transition-colors cursor-pointer"
               >
                 Close
               </button>

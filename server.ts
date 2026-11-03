@@ -35,7 +35,7 @@ let mockSessions: any[] = [
         url: 'https://github.com/google/hollow-code/pull/42',
         number: 42,
         title: 'fix(auth): handle expired JWT tokens gracefully',
-        headBranch: 'jules/fix-auth-jwt',
+        headBranch: 'agent/fix-auth-jwt',
         baseBranch: 'main'
       }
     }
@@ -70,7 +70,7 @@ let mockSessions: any[] = [
         url: 'https://github.com/acme-corp/microservice-auth/pull/108',
         number: 108,
         title: 'refactor(db): implement exponential backoff on pool connection',
-        headBranch: 'jules/db-pool-retry',
+        headBranch: 'agent/db-pool-retry',
         baseBranch: 'master'
       }
     }
@@ -181,7 +181,7 @@ let mockActivitiesMap: Record<string, any[]> = {
       createTime: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
       originator: 'AGENT',
       bashOutput: {
-        command: 'git push origin jules/db-pool-retry && gh pr create --fill',
+        command: 'git push origin agent/db-pool-retry && gh pr create --fill',
         output: 'https://github.com/acme-corp/microservice-auth/pull/108',
         exitCode: 0
       }
@@ -189,11 +189,11 @@ let mockActivitiesMap: Record<string, any[]> = {
   ]
 };
 
-// Helper for calling external Jules API
+// Helper for calling external API
 async function callJulesApi(endpoint: string, method: string = 'GET', body?: any) {
   const apiKey = process.env.JULES_API_KEY;
   if (!apiKey) {
-    throw { status: 401, message: 'JULES_API_KEY is not set on the server.' };
+    throw { status: 401, message: 'API key is not set on the server.' };
   }
 
   const url = `${JULES_API_BASE}${endpoint}`;
@@ -269,9 +269,9 @@ app.get('/api/jules/sources', async (req: Request, res: Response) => {
         defaultBranch: 'main'
       },
       {
-        name: 'sources/github.com/google/jules-sdk-ts',
-        id: 'github.com/google/jules-sdk-ts',
-        repository: 'google/jules-sdk-ts',
+        name: 'sources/github.com/google/agent-sdk-ts',
+        id: 'github.com/google/agent-sdk-ts',
+        repository: 'google/agent-sdk-ts',
         defaultBranch: 'main'
       },
       {
@@ -392,7 +392,7 @@ app.post('/api/jules/sessions', async (req: Request, res: Response) => {
       createTime: new Date().toISOString(),
       originator: 'AGENT',
       progressUpdate: {
-        message: `Task started on repo ${repoName} (${startingBranch || 'main'}). Initializing Jules Agent worker...`
+        message: `Task started on repo ${repoName} (${startingBranch || 'main'}). Initializing Autonomous Agent worker...`
       }
     },
     {
